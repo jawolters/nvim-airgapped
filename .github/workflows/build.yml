@@ -59,7 +59,12 @@ jobs:
         run: |
           # The result symlink points directly to the AppImage binary.
           APPIMAGE_SRC=$(readlink -f result-appimage)
-          VERSION="${GITHUB_REF_NAME:-dev}"
+          # Use tag name if triggered by a tag, otherwise generate a date-based version
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            VERSION="${GITHUB_REF_NAME}"
+          else
+            VERSION="v$(date -u +%Y.%m.%d)"
+          fi
           DEST="nvim-airgap-${VERSION}-${{ matrix.system }}.AppImage"
           cp "$APPIMAGE_SRC" "$DEST"
           chmod +x "$DEST"
@@ -86,16 +91,26 @@ jobs:
           path: ${{ steps.artifact.outputs.path }}
           retention-days: 30
 
+      # When triggered by a tag, use that tag. When triggered manually with
+      # inputs.release=true, create (or update) a date-based tag on the fly.
+      - name: Create tag for manual release
+        if: inputs.release && !startsWith(github.ref, 'refs/tags/')
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "${{ steps.artifact.outputs.version }}"
+          git push origin "${{ steps.artifact.outputs.version }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Create Release
         if: startsWith(github.ref, 'refs/tags/v') || inputs.release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.artifact.outputs.version }}
           name: ${{ steps.artifact.outputs.version }}
-          # Release notes are auto-generated from commits since last tag.
-          # Replace with a CHANGELOG.md entry if you maintain one.
           generate_release_notes: true
           files: ${{ steps.artifact.outputs.path }}
-          # Mark pre-releases for non-semver tags like v0.x or vYYYY.MM.DD
           prerelease: ${{ !startsWith(steps.artifact.outputs.version, 'v1') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
