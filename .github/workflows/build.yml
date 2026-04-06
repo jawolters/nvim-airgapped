@@ -35,8 +35,6 @@ jobs:
           extra_nix_config: |
             experimental-features = nix-command flakes
 
-      - uses: DeterminateSystems/magic-nix-cache-action@v13
-
       - name: Build AppImage
         run: |
           nix build .#appimage \
