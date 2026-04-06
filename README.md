@@ -61,7 +61,7 @@ The monthly CI workflow (`update-plugins.yml`) does this automatically and deplo
 | Action | URL | License |
 |---|---|---|
 | cachix/install-nix-action | https://github.com/cachix/install-nix-action | Apache-2.0 |
-| nix-community/cache-nix-action | https://github.com/nix-community/cache-nix-action | MIT |
+| DeterminateSystems/magic-nix-cache-action | https://github.com/DeterminateSystems/magic-nix-cache-action | MIT |
 | actions/checkout | https://github.com/actions/checkout | MIT |
 | actions/upload-artifact | https://github.com/actions/upload-artifact | MIT |
 | softprops/action-gh-release | https://github.com/softprops/action-gh-release | MIT |
