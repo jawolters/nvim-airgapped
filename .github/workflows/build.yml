@@ -57,7 +57,7 @@ jobs:
           else
             VERSION="v$(date -u +%Y.%m.%d)"
           fi
-          DEST="nvim-airgap-${VERSION}-${{ matrix.system }}.AppImage"
+          DEST="nvim-airgapped-${VERSION}-${{ matrix.system }}.AppImage"
           cp "$APPIMAGE_SRC" "$DEST"
           chmod +x "$DEST"
 
@@ -83,8 +83,6 @@ jobs:
           path: ${{ steps.artifact.outputs.path }}
           retention-days: 30
 
-      # When triggered by a tag, use that tag. When triggered manually with
-      # inputs.release=true, create (or update) a date-based tag on the fly.
       - name: Create tag for manual release
         if: inputs.release && !startsWith(github.ref, 'refs/tags/')
         run: |
