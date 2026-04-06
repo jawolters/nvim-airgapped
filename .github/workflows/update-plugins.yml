@@ -1,12 +1,9 @@
 name: Update plugins
 
-# Runs weekly and opens a PR when flake.lock changes.
-# The PR triggers the build workflow, so you see the AppImage artifact
-# before merging. Merge the PR -> tag -> Release.
 on:
   schedule:
-    - cron: '0 6 * * 1'   # Monday 06:00 UTC
-  workflow_dispatch:       # allow manual trigger
+    - cron: '0 7 1-7 * 0'   # first Sunday of the month, 08:00 CET (07:00 UTC)
+  workflow_dispatch:
 
 jobs:
   update:
@@ -14,10 +11,15 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      pull-requests: write
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Use a token with push access. GITHUB_TOKEN works for same-repo
+          # pushes but will NOT trigger downstream workflows (build.yml).
+          # Create a fine-grained PAT with "Contents: read and write" and
+          # add it as a repository secret named RELEASE_TOKEN.
+          token: ${{ secrets.RELEASE_TOKEN }}
 
       - uses: cachix/install-nix-action@v30
         with:
@@ -26,30 +28,28 @@ jobs:
             substituters = https://cache.nixos.org
             trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
 
-      # -- Update all flake inputs ---------------------------------------
       - name: Update flake.lock
         id: update
         run: |
-          # Capture old lock for diff
           cp flake.lock flake.lock.before
 
-          nix flake update --commit-lock-file \
-            --commit-lockfile-summary "chore: nix flake update $(date -u +%Y-%m-%d)"
+          nix flake update \
+            --extra-experimental-features 'nix-command flakes'
 
-          # Check if anything actually changed
           if diff -q flake.lock.before flake.lock > /dev/null 2>&1; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No changes in flake.lock, skipping release."
           else
-            echo "changed=true"  >> "$GITHUB_OUTPUT"
+            echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
-      # -- Summarise what changed ----------------------------------------
       - name: Diff inputs
         if: steps.update.outputs.changed == 'true'
         run: |
           echo "## Plugin / input changes" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           nix flake metadata --json \
+            --extra-experimental-features 'nix-command flakes' \
             | python3 -c "
           import json, sys
           data = json.load(sys.stdin)
@@ -61,30 +61,17 @@ jobs:
           " >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
           echo '```' >> "$GITHUB_STEP_SUMMARY"
 
-      # -- Open PR -------------------------------------------------------
-      - name: Create Pull Request
+      - name: Commit and tag release
         if: steps.update.outputs.changed == 'true'
-        uses: peter-evans/create-pull-request@v7
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          branch: update/flake-lock-${{ github.run_id }}
-          title: "chore: update plugins - ${{ github.run_started_at }}"
-          body: |
-            ## Automatic plugin update
+        run: |
+          VERSION="v$(date -u +%Y.%m.%d)"
 
-            `nix flake update` was run on ${{ github.run_started_at }}.
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
-            **What to check before merging:**
-            - [ ] Build artifact in the CI run below looks sane (file size reasonable)
-            - [ ] No breaking changes in LazyVim changelog for this version bump
-            - [ ] LSP server APIs still compatible
+          git add flake.lock
+          git commit -m "chore: nix flake update ${VERSION}"
 
-            **To release after merging:**
-            ```bash
-            git pull
-            git tag v$(date -u +%Y.%m.%d)
-            git push --tags
-            ```
-            This triggers the release workflow and publishes the AppImage.
-          labels: dependencies
-          commit-message: "chore: nix flake update"
+          git tag "${VERSION}"
+          git push origin main
+          git push origin "${VERSION}"

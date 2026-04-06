@@ -1,7 +1,5 @@
-# Nix build outputs
+*.AppImage
 result
 result-*
-
-# Nix evaluation cache
 .direnv/
 .nix-eval-cache/

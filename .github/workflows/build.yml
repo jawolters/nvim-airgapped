@@ -30,7 +30,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # -- Install Nix ---------------------------------------------------
       - uses: cachix/install-nix-action@v30
         with:
           extra_nix_config: |
@@ -40,25 +39,15 @@ jobs:
             substituters = https://cache.nixos.org
             trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
 
-      # -- Cache Nix store (GitHub Actions cache - no third-party service) --
-      # nix-community/cache-nix-action stores the Nix store closure in
-      # GitHub's built-in cache API.  Free, open source, no external account.
-      # Key rotates on flake.lock changes so stale plugins are never reused.
       - uses: nix-community/cache-nix-action@v6
         with:
           primary-key: nix-${{ runner.os }}-${{ hashFiles('flake.lock') }}
           restore-keys: |
             nix-${{ runner.os }}-
-          # Only write the cache on main / tag builds to prevent PRs from
-          # poisoning the shared cache with untrusted store paths.
           save: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/') }}
-          # Trim the store before saving to stay within the 10 GiB GHA limit.
           gc-enabled: true
           gc-max-store-size-linux: 8589934592   # 8 GiB
 
-      # -- Build ---------------------------------------------------------
-      # nix build .#appimage produces a symlink `result` pointing to the
-      # AppImage file in the Nix store.
       - name: Build AppImage
         run: |
           nix build .#appimage \
@@ -66,7 +55,6 @@ jobs:
             --print-build-logs \
             --extra-experimental-features 'nix-command flakes'
 
-      # -- Collect artifact ----------------------------------------------
       - name: Prepare artifact
         id: artifact
         run: |
@@ -93,14 +81,12 @@ jobs:
           echo "| flake.lock sha256 | \`$LOCK_HASH\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Nix store path | \`$APPIMAGE_SRC\` |" >> "$GITHUB_STEP_SUMMARY"
 
-      # -- Upload artifact (every run) -----------------------------------
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.artifact.outputs.path }}
           path: ${{ steps.artifact.outputs.path }}
           retention-days: 30
 
-      # -- GitHub Release (tag pushes only) -----------------------------
       - name: Create Release
         if: startsWith(github.ref, 'refs/tags/v') || inputs.release
         uses: softprops/action-gh-release@v2

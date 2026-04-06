@@ -44,8 +44,13 @@ in
       # -- LazyVim distribution --------------------------------------------
       LazyVim
 
-      # -- Colorscheme (LazyVim default) -----------------------------------
+      # -- Colorschemes ----------------------------------------------------
       tokyonight-nvim
+      vscode-nvim    # VS Code dark/light theme
+      onedark-nvim   # Atom One Dark theme
+
+      # -- Core LazyVim dependency (required at startup) -------------------
+      snacks-nvim       # LazyVim uses Snacks for notifications, picker, dashboard, ...
 
       # -- UI --------------------------------------------------------------
       bufferline-nvim
@@ -81,17 +86,29 @@ in
       mason-lspconfig-nvim
 
       # -- Completion ------------------------------------------------------
-      nvim-cmp
-      cmp-nvim-lsp
-      cmp-buffer
-      cmp-path
+      # blink.cmp is LazyVim's default completion engine since v14.
+      # nvim-cmp and its sources are removed; blink.cmp has built-in LSP,
+      # buffer, and path sources and its own luasnip integration.
+      blink-cmp
       luasnip
-      cmp_luasnip
       friendly-snippets
 
       # -- Formatting / Linting --------------------------------------------
       conform-nvim
       nvim-lint
+
+      # -- Comments --------------------------------------------------------
+      ts-comments-nvim    # LazyVim default: better comment strings per language
+
+      # -- LazyVim core defaults (flagged Not Installed) -------------------
+      catppuccin-nvim     # optional colorscheme referenced by LazyVim extras
+      grug-far-nvim       # project-wide search & replace (replaced spectre)
+      lazydev-nvim        # Lua development setup (replaced neodev.nvim)
+      nvim-ts-autotag     # auto-close/rename HTML and JSX tags
+      nvim-nio            # async library required by neotest
+
+      # -- Python extra ----------------------------------------------------
+      venv-selector-nvim  # Python venv picker (<leader>cv)
 
       # -- Git -------------------------------------------------------------
       diffview-nvim
@@ -127,7 +144,7 @@ in
       # -- Testing ---------------------------------------------------------
       neotest           # unified test runner UI
       neotest-python    # pytest / unittest adapter
-      neotest-go        # go test adapter
+      neotest-golang    # go test adapter (LazyVim Go extra uses this, not neotest-go)
       # neotest for C++ (gtest) is not yet in nixpkgs - fetch manually if needed
 
       # -- Tasks / terminal ------------------------------------------------
@@ -141,16 +158,73 @@ in
       render-markdown-nvim  # render headers/tables/code blocks inline
     ];
 
-    # Tell lazy.nvim this is an air-gapped environment:
-    # - install.missing = false  -> don't try to fetch missing plugins
-    # - checker.enabled = false  -> don't check for updates
-    # LazyVim is loaded via its import spec below.
     settings = {
-      install.missing        = false;
-      checker.enabled        = false;
+      # Air-gap settings: disable all network activity
+      install.missing          = false;
+      checker.enabled          = false;
       change_detection.enabled = false;
-      rocks.enabled          = false;   # no luarocks in air-gap
+      rocks.enabled            = false;
+
       performance.reset_packpath = true;
+
+      # Specs passed directly to nixvim's lazy setup call - no second
+      # require("lazy").setup() needed, which avoids the "resourcing" warning.
+      spec = [
+        { "__unkeyed-1" = "LazyVim/LazyVim"; import = "lazyvim.plugins"; }
+
+        # Language extras - each activates LSP keymaps, formatters,
+        # DAP launch configs and treesitter parsers for that language.
+        { import = "lazyvim.plugins.extras.lang.python"; }
+        { import = "lazyvim.plugins.extras.lang.clangd"; }
+        { import = "lazyvim.plugins.extras.lang.go"; }
+        { import = "lazyvim.plugins.extras.lang.cmake"; }
+
+        # Testing - neotest UI and keymaps (<leader>t*)
+        { import = "lazyvim.plugins.extras.test.core"; }
+
+        # UI extras
+        { import = "lazyvim.plugins.extras.util.mini-hipatterns"; }
+
+        # LazyVim references each mini module as a separate plugin identifier
+        # (echasnovski/mini.pairs, mini.ai, etc.) but they all live inside
+        # the single mini-nvim store path.  These entries tell lazy.nvim where
+        # to find each one without downloading anything.
+        { "__unkeyed-1" = "nvim-mini/mini.pairs";      dir = "${pkgs.vimPlugins.mini-nvim}"; }
+        { "__unkeyed-1" = "nvim-mini/mini.ai";          dir = "${pkgs.vimPlugins.mini-nvim}"; }
+        { "__unkeyed-1" = "nvim-mini/mini.icons";       dir = "${pkgs.vimPlugins.mini-nvim}"; }
+        { "__unkeyed-1" = "nvim-mini/mini.bufremove";   dir = "${pkgs.vimPlugins.mini-nvim}"; }
+        { "__unkeyed-1" = "nvim-mini/mini.hipatterns";  dir = "${pkgs.vimPlugins.mini-nvim}"; }
+        { "__unkeyed-1" = "nvim-mini/mini.indentscope"; dir = "${pkgs.vimPlugins.mini-nvim}"; }
+        { "__unkeyed-1" = "nvim-mini/mini.surround";    dir = "${pkgs.vimPlugins.mini-nvim}"; }
+        { "__unkeyed-1" = "nvim-mini/mini.statusline";  dir = "${pkgs.vimPlugins.mini-nvim}"; }
+        { "__unkeyed-1" = "nvim-mini/mini.tabline";     dir = "${pkgs.vimPlugins.mini-nvim}"; }
+        { "__unkeyed-1" = "nvim-mini/mini.comment";     dir = "${pkgs.vimPlugins.mini-nvim}"; }
+        { "__unkeyed-1" = "nvim-mini/mini.move";        dir = "${pkgs.vimPlugins.mini-nvim}"; }
+        { "__unkeyed-1" = "nvim-mini/mini.notify";      dir = "${pkgs.vimPlugins.mini-nvim}"; }
+        { "__unkeyed-1" = "nvim-mini/mini.pick";        dir = "${pkgs.vimPlugins.mini-nvim}"; }
+        { "__unkeyed-1" = "nvim-mini/mini.trailspace";  dir = "${pkgs.vimPlugins.mini-nvim}"; }
+
+        { "__unkeyed-1" = "folke/ts-comments.nvim"; dir = "${pkgs.vimPlugins.ts-comments-nvim}"; }
+
+        # blink.cmp - LazyVim's default completion engine since v14
+        { "__unkeyed-1" = "saghen/blink.cmp";              dir = "${pkgs.vimPlugins.blink-cmp}"; }
+        { "__unkeyed-1" = "catppuccin/nvim";               dir = "${pkgs.vimPlugins.catppuccin-nvim}"; }
+        { "__unkeyed-1" = "MagicDuck/grug-far.nvim";       dir = "${pkgs.vimPlugins.grug-far-nvim}"; }
+        { "__unkeyed-1" = "folke/lazydev.nvim";            dir = "${pkgs.vimPlugins.lazydev-nvim}"; }
+        { "__unkeyed-1" = "windwp/nvim-ts-autotag";        dir = "${pkgs.vimPlugins.nvim-ts-autotag}"; }
+        { "__unkeyed-1" = "nvim-neotest/nvim-nio";         dir = "${pkgs.vimPlugins.nvim-nio}"; }
+        { "__unkeyed-1" = "linux-cultist/venv-selector.nvim"; dir = "${pkgs.vimPlugins.venv-selector-nvim}"; }
+        { "__unkeyed-1" = "fredrikaverpil/neotest-golang"; dir = "${pkgs.vimPlugins.neotest-golang}"; }
+
+        # nvim-dap's Lua module is require("dap"), not require("nvim-dap").
+        # lazy's auto-config tries require("nvim-dap").setup() which is nil.
+        # Provide an explicit no-op so it wins over any auto-generated entry.
+        { "__unkeyed-1" = "mfussenegger/nvim-dap"; config = { __raw = "function() end"; }; }
+
+
+        # User overrides from XDG_CONFIG_HOME/nvim/lua/plugins/
+        { import = "plugins"; }
+      ];
     };
   };
 
@@ -234,48 +308,4 @@ in
     gcc                             # treesitter parser compilation (fallback)
   ];
 
-  # -- Bootstrap: wire LazyVim's default specs ----------------------------
-  # This replaces the usual `init.lua` bootstrap that downloads lazy.nvim.
-  # nixvim already handles lazy.nvim installation; we just need to tell
-  # lazy.nvim to import LazyVim's default plugin specs.
-  extraConfigLuaPre = ''
-    -- LazyVim bootstrap (no download - nixvim pre-installed lazy.nvim)
-    require("lazy").setup({
-      spec = {
-        -- -- LazyVim core -----------------------------------------------
-        { "LazyVim/LazyVim", import = "lazyvim.plugins" },
-
-        -- -- Language extras --------------------------------------------
-        -- Each import activates LazyVim's opinionated defaults for that
-        -- language: LSP keymaps, conform formatters, nvim-lint sources,
-        -- DAP launch configs, and treesitter parsers.
-        -- All plugins they reference are pre-installed by Nix above.
-        { import = "lazyvim.plugins.extras.lang.python" },
-        { import = "lazyvim.plugins.extras.lang.clangd" },
-        { import = "lazyvim.plugins.extras.lang.go" },
-        { import = "lazyvim.plugins.extras.lang.cmake" },   -- pairs with C++
-
-        -- -- Testing ----------------------------------------------------
-        -- Activates neotest UI, keymaps (<leader>t*), and status line
-        -- integration.  Language adapters above are wired in automatically.
-        { import = "lazyvim.plugins.extras.test.core" },
-
-        -- -- Git / UI extras --------------------------------------------
-        { import = "lazyvim.plugins.extras.util.mini-hipatterns" },
-
-        -- -- Editor extras ----------------------------------------------
-        -- inc-rename: replaces the default LSP rename handler with the
-        -- live-preview version.  No extra import needed - configured below.
-
-        -- -- User overrides ---------------------------------------------
-        -- Loaded from XDG_CONFIG_HOME/nvim/lua/plugins/ - lua files only,
-        -- no bootstrap code.  Use `dir =` for any local-only additions.
-        { import = "plugins" },
-      },
-      install          = { missing = false },
-      checker          = { enabled = false },
-      rocks            = { enabled = false },
-      change_detection = { enabled = false },
-    })
-  '';
 }

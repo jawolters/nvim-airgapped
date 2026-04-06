@@ -32,23 +32,6 @@ To inspect what would be fetched without building:
 nix build .#appimage --dry-run
 ```
 
-To force a full rebuild from scratch, bypassing all local caches:
-
-```bash
-nix build .#appimage --rebuild --print-build-logs
-```
-
-### Deploy to an air-gapped machine
-
-```bash
-# Copy the AppImage
-scp nvim.AppImage user@target:/usr/local/bin/nvim
-ssh user@target chmod +x /usr/local/bin/nvim
-
-# Copy user config (plain Lua files - no download infrastructure needed)
-rsync -av user-config/ user@target:~/.config/nvim/
-```
-
 ### Update plugins
 
 Plugin versions are pinned in `flake.lock`. To update all inputs:
@@ -58,8 +41,7 @@ nix flake update
 nix build .#appimage --print-build-logs
 ```
 
-The weekly CI workflow (`update-plugins.yml`) does this automatically and
-opens a pull request for review before any version bump is merged.
+The monthly CI workflow (`update-plugins.yml`) does this automatically and deploys new releases if the plugins have changed.
 
 ---
 
@@ -98,6 +80,8 @@ opens a pull request for review before any version bump is merged.
 | Plugin | URL | License |
 |---|---|---|
 | tokyonight.nvim | https://github.com/folke/tokyonight.nvim | Apache-2.0 |
+| vscode.nvim | https://github.com/Mofiqul/vscode.nvim | MIT |
+| onedark.nvim | https://github.com/navarasu/onedark.nvim | MIT |
 | bufferline.nvim | https://github.com/akinsho/bufferline.nvim | GPL-3.0 |
 | lualine.nvim | https://github.com/nvim-lualine/lualine.nvim | MIT |
 | neo-tree.nvim | https://github.com/nvim-neo-tree/neo-tree.nvim | MIT |
@@ -180,10 +164,15 @@ opens a pull request for review before any version bump is merged.
 | Plugin | URL | License |
 |---|---|---|
 | neotest | https://github.com/nvim-neotest/neotest | MIT |
+| nvim-nio | https://github.com/nvim-neotest/nvim-nio | MIT |
 | neotest-python | https://github.com/nvim-neotest/neotest-python | MIT |
-| neotest-go | https://github.com/nvim-neotest/neotest-go | MIT |
+| neotest-golang | https://github.com/fredrikaverpil/neotest-golang | MIT |
 | overseer.nvim | https://github.com/stevearc/overseer.nvim | MIT |
 | toggleterm.nvim | https://github.com/akinsho/toggleterm.nvim | MIT |
+| grug-far.nvim | https://github.com/MagicDuck/grug-far.nvim | MIT |
+| lazydev.nvim | https://github.com/folke/lazydev.nvim | Apache-2.0 |
+| nvim-ts-autotag | https://github.com/windwp/nvim-ts-autotag | MIT |
+| venv-selector.nvim | https://github.com/linux-cultist/venv-selector.nvim | MIT |
 
 ### System tools (bundled via Nix)
 
