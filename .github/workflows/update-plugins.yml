@@ -1,0 +1,90 @@
+name: Update plugins
+
+# Runs weekly and opens a PR when flake.lock changes.
+# The PR triggers the build workflow, so you see the AppImage artifact
+# before merging. Merge the PR -> tag -> Release.
+on:
+  schedule:
+    - cron: '0 6 * * 1'   # Monday 06:00 UTC
+  workflow_dispatch:       # allow manual trigger
+
+jobs:
+  update:
+    name: nix flake update
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: cachix/install-nix-action@v30
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            substituters = https://cache.nixos.org
+            trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
+
+      # -- Update all flake inputs ---------------------------------------
+      - name: Update flake.lock
+        id: update
+        run: |
+          # Capture old lock for diff
+          cp flake.lock flake.lock.before
+
+          nix flake update --commit-lock-file \
+            --commit-lockfile-summary "chore: nix flake update $(date -u +%Y-%m-%d)"
+
+          # Check if anything actually changed
+          if diff -q flake.lock.before flake.lock > /dev/null 2>&1; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true"  >> "$GITHUB_OUTPUT"
+          fi
+
+      # -- Summarise what changed ----------------------------------------
+      - name: Diff inputs
+        if: steps.update.outputs.changed == 'true'
+        run: |
+          echo "## Plugin / input changes" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          nix flake metadata --json \
+            | python3 -c "
+          import json, sys
+          data = json.load(sys.stdin)
+          for name, node in sorted(data.get('locks', {}).get('nodes', {}).items()):
+              locked = node.get('locked', {})
+              rev = locked.get('rev', locked.get('ref', ''))[:12]
+              if rev:
+                  print(f'{name:40s} {rev}')
+          " >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      # -- Open PR -------------------------------------------------------
+      - name: Create Pull Request
+        if: steps.update.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: update/flake-lock-${{ github.run_id }}
+          title: "chore: update plugins - ${{ github.run_started_at }}"
+          body: |
+            ## Automatic plugin update
+
+            `nix flake update` was run on ${{ github.run_started_at }}.
+
+            **What to check before merging:**
+            - [ ] Build artifact in the CI run below looks sane (file size reasonable)
+            - [ ] No breaking changes in LazyVim changelog for this version bump
+            - [ ] LSP server APIs still compatible
+
+            **To release after merging:**
+            ```bash
+            git pull
+            git tag v$(date -u +%Y.%m.%d)
+            git push --tags
+            ```
+            This triggers the release workflow and publishes the AppImage.
+          labels: dependencies
+          commit-message: "chore: nix flake update"

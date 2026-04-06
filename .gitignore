@@ -1,0 +1,7 @@
+# Nix build outputs
+result
+result-*
+
+# Nix evaluation cache
+.direnv/
+.nix-eval-cache/
