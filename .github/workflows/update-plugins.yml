@@ -15,10 +15,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Use a token with push access. GITHUB_TOKEN works for same-repo
-          # pushes but will NOT trigger downstream workflows (build.yml).
-          # Create a fine-grained PAT with "Contents: read and write" and
-          # add it as a repository secret named RELEASE_TOKEN.
           token: ${{ secrets.RELEASE_TOKEN }}
 
       - uses: cachix/install-nix-action@v30
