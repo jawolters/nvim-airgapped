@@ -39,7 +39,7 @@ jobs:
             substituters = https://cache.nixos.org
             trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
 
-      - uses: DeterminateSystems/magic-nix-cache-action@v9
+      - uses: DeterminateSystems/magic-nix-cache-action@v13
 
       - name: Build AppImage
         run: |
