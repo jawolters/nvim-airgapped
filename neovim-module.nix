@@ -4,8 +4,51 @@
 # tries to clone anything from the internet.
 { pkgs, lib, ... }:
 let
+  # nvim-treesitter (main) only counts parsers found in its install_dir.
+  # Merge the Nix-built grammars into one dir so it never compiles/downloads.
+  # norg isn't packaged in nixpkgs (snacks.image lists it) - build it here.
+  norgGrammar = pkgs.neovimUtils.grammarToPlugin (pkgs.tree-sitter.buildGrammar {
+    language = "norg";
+    version  = "unstable-2026";
+    src = pkgs.fetchFromGitHub {
+      owner = "nvim-neorg";
+      repo  = "tree-sitter-norg";
+      rev   = "d7edfaf89198aab652c7a1f0f818196efedaccfb";
+      hash  = "sha256-ro80ju8x1B7Mqj7feykaAFgPB8oo/u4PqR6aqMpHoc0=";
+    };
+  });
+  tsGrammars = pkgs.symlinkJoin {
+    name  = "treesitter-grammars";
+    paths = builtins.attrValues pkgs.vimPlugins.nvim-treesitter.grammarPlugins ++ [ norgGrammar ];
+  };
+  tsParsers = pkgs.linkFarm "treesitter-install" [
+    { name = "parser";  path = "${tsGrammars}/parser"; }
+    { name = "queries"; path = "${pkgs.vimPlugins.nvim-treesitter}/runtime/queries"; }
+  ];
 in
 {
+  # snacks picker needs libsqlite3 for frecency/history
+  env.LD_LIBRARY_PATH = "${pkgs.sqlite.out}/lib";
+
+  # Link the Nix-built parsers/queries into nvim-treesitter's default
+  # (writable) install dir so it sees them as installed.
+  extraConfigLuaPre = ''
+    do
+      local site = vim.fn.stdpath("data") .. "/site"
+      vim.fn.mkdir(site, "p")
+      for _, d in ipairs({ "parser", "queries" }) do
+        local dst, src = site .. "/" .. d, "${tsParsers}/" .. d
+        local st = vim.uv.fs_lstat(dst)
+        if st == nil or st.type == "link" then
+          if st then vim.uv.fs_unlink(dst) end
+          vim.uv.fs_symlink(src, dst)
+        end
+      end
+    end
+  '';
+
+  extraLuaPackages = ps: [ ps.jsregexp ];
+
   # -- Neovim binary ------------------------------------------------------
   package = pkgs.neovim-unwrapped;
   viAlias = true;
@@ -82,8 +125,6 @@ in
 
       # -- LSP -------------------------------------------------------------
       nvim-lspconfig
-      mason-nvim            # Mason UI still works; servers must be pre-installed
-      mason-lspconfig-nvim
 
       # -- Completion ------------------------------------------------------
       # blink.cmp is LazyVim's default completion engine since v14.
@@ -222,6 +263,30 @@ in
         { "__unkeyed-1" = "mfussenegger/nvim-dap"; config = { __raw = "function() end"; }; }
 
 
+        # lualine's symbols breadcrumb calls require("trouble").statusline() at
+        # config time, before trouble's sources are on the rtp - load it eagerly.
+        { "__unkeyed-1" = "folke/trouble.nvim"; lazy = false; }
+
+        # mason can't download anything air-gapped; tools come from extraPackages
+        { "__unkeyed-1" = "mason-org/mason.nvim";           enabled = false; }
+        { "__unkeyed-1" = "mason-org/mason-lspconfig.nvim"; enabled = false; }
+
+        # same position encoding for all clients (pyright + ruff)
+        { "__unkeyed-1" = "neovim/nvim-lspconfig";
+          opts.servers = {
+            ruff.capabilities.general.positionEncodings = [ "utf-16" ];
+            # drop compound filetypes nvim doesn't know (checkhealth vim.lsp)
+            yamlls.filetypes = [ "yaml" ];
+            gopls.filetypes  = [ "go" "gomod" "gowork" ];
+            clangd.filetypes = [ "c" "cpp" "objc" "objcpp" "cuda" "proto" ];
+          }; }
+
+        { "__unkeyed-1" = "folke/snacks.nvim"; opts = { image.enabled = true; statuscolumn.enabled = true; }; }
+        { "__unkeyed-1" = "MeanderingProgrammer/render-markdown.nvim"; opts.latex.enabled = false; }
+        { "__unkeyed-1" = "stevearc/overseer.nvim";
+          opts.disable_template_modules = map (n: "^overseer%.template%.${n}$")
+            [ "cargo" "cargo%-make" "composer" "deno" "devenv" "mage" "mise" "mix" "rake" "task" "tox" ];  }
+
         # User overrides from XDG_CONFIG_HOME/nvim/lua/plugins/
         { import = "plugins"; }
       ];
@@ -306,6 +371,26 @@ in
     ripgrep
     fd
     gcc                             # treesitter parser compilation (fallback)
+    # self-contained: nothing may be assumed on the host
+    gnutar
+    gzip
+    unzip
+    curl
+    fish                            # fish_indent for conform
+    chafa
+    viu
+    ueberzugpp
+    ast-grep
+    shfmt
+    mermaid-cli
+    imagemagick
+    ghostscript
+    tectonic
+    gnumake
+    just
+    nodejs
+    vscode-extensions.vadimcn.vscode-lldb.adapter  # codelldb for DAP
+    tree-sitter                     # nvim-treesitter (main) requires the CLI; LazyVim would otherwise try mason
   ];
 
 }
