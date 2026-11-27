@@ -197,6 +197,9 @@ in
 
       # -- UI --------------------------------------------------------------
       render-markdown-nvim  # render headers/tables/code blocks inline
+
+      # -- AI --------------------------------------------------------------
+      codecompanion-nvim    # chat with ACP agents (opencode, ...) - agent binary not bundled
     ];
 
     settings = {
@@ -283,6 +286,17 @@ in
 
         { "__unkeyed-1" = "folke/snacks.nvim"; opts = { image.enabled = true; statuscolumn.enabled = true; }; }
         { "__unkeyed-1" = "MeanderingProgrammer/render-markdown.nvim"; opts.latex.enabled = false; }
+        # AI chat over ACP. The agent is an external CLI found on PATH
+        # (default: `opencode acp`); nothing is downloaded at runtime.
+        # Loaded on first use only.
+        { "__unkeyed-1" = "olimorris/codecompanion.nvim";
+          cmd  = [ "CodeCompanion" "CodeCompanionChat" "CodeCompanionActions" "CodeCompanionCmd" ];
+          keys = [
+            { "__unkeyed-1" = "<leader>ac"; "__unkeyed-2" = "<cmd>CodeCompanionChat Toggle<cr>"; mode = [ "n" "v" ]; desc = "Toggle CodeCompanion chat"; }
+            { "__unkeyed-1" = "<leader>aa"; "__unkeyed-2" = "<cmd>CodeCompanionActions<cr>";     mode = [ "n" "v" ]; desc = "CodeCompanion actions"; }
+            { "__unkeyed-1" = "ga";         "__unkeyed-2" = "<cmd>CodeCompanionChat Add<cr>";    mode = "v";         desc = "Add selection to CodeCompanion chat"; }
+          ];
+          opts.interactions.chat.adapter = "opencode"; }
         { "__unkeyed-1" = "stevearc/overseer.nvim";
           opts.disable_template_modules = map (n: "^overseer%.template%.${n}$")
             [ "cargo" "cargo%-make" "composer" "deno" "devenv" "mage" "mise" "mix" "rake" "task" "tox" ];  }
