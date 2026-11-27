@@ -10,8 +10,11 @@
     };
 
     # AppImage bundler - packages the Nix closure as a standalone AppImage
+    # Pinned to 7946add: later revisions fail to start on hosts without
+    # /nix/store (https://github.com/ralismark/nix-appimage/pull/31).
+    # Remove the pin once that fix is merged.
     nix-appimage = {
-      url = "github:ralismark/nix-appimage";
+      url = "github:ralismark/nix-appimage/7946addbc0d97e358a6d7aefe5e82310f0fe6b18";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
