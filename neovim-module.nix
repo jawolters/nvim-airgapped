@@ -287,8 +287,18 @@ in
           opts.disable_template_modules = map (n: "^overseer%.template%.${n}$")
             [ "cargo" "cargo%-make" "composer" "deno" "devenv" "mage" "mise" "mix" "rake" "task" "tox" ];  }
 
-        # User overrides from XDG_CONFIG_HOME/nvim/lua/plugins/
-        { import = "plugins"; }
+        # User overrides from XDG_CONFIG_HOME/nvim/lua/plugins/.
+        # Skipped when no such module exists, otherwise lazy.nvim reports
+        # 'No specs found for module "plugins"' at every startup.
+        { import = "plugins";
+          cond.__raw = ''
+            function()
+              local find = vim.api.nvim_get_runtime_file
+              return #find("lua/plugins.lua", false) > 0
+                or #find("lua/plugins/*.lua", false) > 0
+                or #find("lua/plugins/*/init.lua", false) > 0
+            end'';
+        }
       ];
     };
   };
